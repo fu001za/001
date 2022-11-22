@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="js/vue.js"></script>
+   <!-- index.js一定放在vue.js的下方，因为index.js是基于vue.js的-->
+    <script src="element-ui/lib/index.js"></script>
+    <link rel="stylesheet" href="element-ui/lib/theme-chalk/index.css">
+
+    <script src="js/axios.min.js"></script>
+</head>
+<body>
+<div id="app">
+    <template>
+        <el-table
+                :data="deptList"
+                border
+                style="width: 100%">
+            <el-table-column
+                    fixed
+                    prop="deptId"
+                    label="部门编号"
+                    width="150">
+            </el-table-column>
+            <el-table-column
+                    prop="deptName"
+                    label="部门名"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    prop="deptRemark"
+                    label="备注"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    label="操作"
+                    width="100">
+                <template slot-scope="scope">
+                    <el-button @click="handleClick(scope.row)" type="text" size="small">查看</el-button>
+                    <el-button type="text" size="small">编辑</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <div>
+            <el-pagination
+                    @size-change="handleSizeChange"
+                    @current-change="handleCurrentChange"
+                    :current-page="pageNum"
+                    :page-sizes="[5, 10, 15, 20]"
+                    :page-size="pageSize"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    :total="total">
+            </el-pagination>
+        </div>
+    </template>
+
+</div>
+<script>
+    new Vue({
+        el: "#app",
+        data: {
+            deptList:[],
+            pageNum:1,//页码
+            pageSize:5,//每页显示的条数
+            total:undefined//总条数
+        },
+        created(){//数据初始化完毕后自动执行
+            this.getData();
+        },
+        methods: {
+            getData(){
+                axios.get("dept",{params:{method:'getAll',pageNum:this.pageNum,pageSize:this.pageSize}}).then(resp=>{
+                    let data=resp.data;
+                    /**
+                     * {"data":[{"deptId":1,"deptName":"开发一部","deptRemark":"开发一部"},{"deptId":2,"deptName":"开发二部","deptRemark":"开发二部"},
+                     * {"deptId":3,"deptName":"开发三部","deptRemark":"开发三部"}],"pages":1,"total":3}}
+                     */
+                    this.deptList=data.result.data;
+                    this.total=data.result.total
+                })
+            },
+            handleSizeChange(val) {
+                console.log(`每页 ${val} 条`);
+                this.pageSize=val;
+                this.getData();//刷新数据
+            },
+            handleCurrentChange(val) {//切换页码
+                console.log(`当前页: ${val}`);
+                this.pageNum=val;
+                this.getData();//刷新数据
+            }
+        }
+    })
+</script>
+</body>
+</html>

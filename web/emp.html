@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>员工管理</title>
+    <script src="js/vue.js"></script>
+    <!-- index.js一定放在vue.js的下方，因为index.js是基于vue.js的-->
+    <script src="element-ui/lib/index.js"></script>
+    <link rel="stylesheet" href="element-ui/lib/theme-chalk/index.css">
+
+    <script src="js/axios.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+    <template>
+        <div>
+            <el-form :inline="true" class="demo-form-inline">
+                <el-form-item label="姓名">
+                    <el-input v-model="searchEmp.empName" placeholder="姓名"></el-input>
+                </el-form-item>
+                <el-form-item label="部门">
+                    <el-select v-model="searchEmp.deptId" placeholder="部门">
+                        <el-option v-for="item in depts" :label="item.deptName" :value="item.deptId"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="性别">
+                    <template>
+                        <el-radio v-model="searchEmp.sex" label="1">男</el-radio>
+                        <el-radio v-model="searchEmp.sex" label="2">女</el-radio>
+                    </template>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="getData">查询</el-button>
+                </el-form-item>
+            </el-form>
+            <el-button type="primary" @click="openDialog(true)">添加员工</el-button>
+        </div>
+        <el-table
+                :data="emps"
+                border
+                style="width: 100%">
+            <el-table-column
+                    fixed
+                    prop="empId"
+                    label="员工编号"
+                    width="150">
+            </el-table-column>
+            <el-table-column
+                    prop="dept.deptName"
+                    label="部门"
+                    width="150">
+            </el-table-column>
+            <el-table-column
+                    prop="empAddress"
+                    label="地址"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    prop="empBirth"
+                    label="出生日期"
+                    :formatter="formatterDate"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    prop="empName"
+                    label="姓名"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    prop="empSalary"
+                    label="工资"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    prop="empSex"
+                    label="性别"
+                    :formatter="formatterSex"
+                    width="120">
+            </el-table-column>
+            <el-table-column
+                    label="操作"
+                    width="100">
+                <template slot-scope="scope">
+                    <el-button @click="delEmp(scope.row)" type="text" size="small">删除</el-button>
+                    <el-button type="text" size="small" @click="openDialog(false,scope.row)">编辑</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </template>
+    <div>
+        <el-pagination
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                :current-page="pageNum"
+                :page-sizes="[5, 10, 15, 20]"
+                :page-size="pageSize"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="total">
+        </el-pagination>
+    </div>
+
+
+
+    <el-dialog title="员工信息" :visible.sync="dialogFormVisible">
+        <el-form>
+            <el-form-item label="员工姓名" :label-width="formLabelWidth">
+                <el-input v-model="emp.empName"  autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="员工性别" :label-width="formLabelWidth">
+                <template>
+                    <el-radio v-model="emp.empSex" label="1">男</el-radio>
+                    <el-radio v-model="emp.empSex" label="2">女</el-radio>
+                </template>
+            </el-form-item>
+            <el-form-item label="员工地址" :label-width="formLabelWidth">
+                <el-input v-model="emp.empAddress"  autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="员工工资" :label-width="formLabelWidth">
+                <el-input v-model="emp.empSalary"  autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="出生日期" :label-width="formLabelWidth">
+                <el-date-picker
+                        v-model="emp.empBirth"
+                        type="date"
+                        value-format="yyyy-MM-dd"
+                        format="yyyy-MM-dd"
+                        placeholder="选择日期">
+                </el-date-picker>
+            </el-form-item>
+            <el-form-item label="选择部门" :label-width="formLabelWidth">
+                <el-select  placeholder="请选择部门" v-model="emp.deptId">
+                    <el-option v-for="item in depts" :label="item.deptName" :value="item.deptId"></el-option>
+                </el-select>
+            </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+            <el-button @click="dialogFormVisible = false">取 消</el-button>
+            <el-button type="primary" @click="saveEmp">确 定</el-button>
+        </div>
+    </el-dialog>
+</div>
+<script>
+    new Vue({
+        el:"#app",
+        data:{
+            emps:[],
+            pageNum:1,
+            pageSize:5,
+            total:undefined,
+            dialogFormVisible:false,  //弹框是否显示
+            formLabelWidth: '120px',
+            depts:[],  //所有的部门列表
+            emp:{
+                empId:undefined,
+                empName:undefined,
+                empSex:undefined,
+                empAddress:undefined,
+                empSalary:undefined,
+                empBirth:undefined,
+                deptId:undefined
+            },
+            searchEmp:{
+                empName:undefined,
+                sex:undefined,
+                deptId:undefined
+            },
+            isAdd:false  //代表是否是从添加按钮显示的弹框
+        },
+        created(){
+            this.getData();
+            this.getAllDepts()
+        },
+        methods:{
+            openDialog(flag,editEmp){//显示弹框,emp只在编辑的时候传过来当前行对象的数据
+                this.dialogFormVisible=true;
+                this.isAdd=flag;
+                console.log(this.isAdd);
+                if (!flag){//说明从编辑弹出的框
+                    this.emp={...editEmp};
+                    this.emp.empSex=this.emp.empSex+"";//elementui中单选认为所有的值都是字符串
+                    this.emp.empBirth=this.formatterDate(this.emp);//因为后台传过来的empBirth是个毫秒数
+                }else{//如果从添加显示的，应该让所有的数据复原
+                    this.emp.empId=undefined,
+                        this.emp.empName=undefined,
+                        this.emp.empSex=undefined,
+                        this.emp.empAddress=undefined,
+                        this.emp.empSalary=undefined,
+                        this.emp.empBirth=undefined,
+                        this.emp.deptId=undefined
+                }
+
+            },
+            //删除，根据主键删除
+            delEmp(row){
+                console.log(row.empId)//当前行的主键
+                this.$confirm('此操作将永久删除该员工, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    //调用ajax进行删除，同时传递当前行的主键id
+                    axios.get("/emp",{params: {method:"deleteById",id:row.empId}}).then(resp=>{
+                        if (resp.data.code==200){
+                            this.$message({
+                                type: 'success',
+                                message: '删除成功!'
+                            });
+                            //刷新当前页的数据
+                            this.getData();
+                        }else{
+                            this.$message({
+                                type: 'info',
+                                message: '删除失败'
+                            });
+                        }
+                    })
+
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+            },
+            //点击确认按钮
+            saveEmp(){
+                console.log(this.emp);
+                let _that=this;//this还是指向vue对象
+                axios.post("/emp",this.emp,{transformRequest:function (data){
+                        let arr=[];
+                        for(name in data){
+                            arr.push(name+"="+data[name])
+                        }
+                        if (_that.isAdd){//从添加按钮过来的
+                            arr.push("method=addEmp")
+                        }else{//从编辑过来的
+                            arr.push("method=editEmp")
+                        }
+
+                        return arr.join("&");//name=admin&psw=133....&method=addEmp
+                    }}).then(resp=>{
+                    /**
+                     * {
+                     *     "code": 200,
+                     *     "msg": "添加成功"
+                     * }
+                     */
+                    let code=resp.data.code;
+                    if (code==200){//添加成功
+                        this.dialogFormVisible = false//让弹框隐藏
+                        this.$message({
+                            message: '恭喜你，执行成功',
+                            type: 'success'
+                        });
+                        //刷新当前页的数据
+                        this.getData();
+                    }else{
+                        this.$message.error('添加失败');
+                    }
+                })
+            },
+            //获取所有的部门列表
+            getAllDepts(){
+                axios.get("/dept?method=getAllDeptNoPage").then(resp=>{
+                    this.depts=resp.data.result
+                })
+            },
+            getData(){
+                axios.get("/emp?method=getAll",
+                    {params:{pageNum:this.pageNum,pageSize: this.pageSize,...this.searchEmp}}).then(resp=>{
+                    /**
+                     * {"code":200,"msg":"请求成功",
+                     * "result":{"data":[{"deptId":1,"empAddress":
+                     * "上海","empBirth":1666022400000,"empId":1,"empName":"李四",
+                     * "empSalary":1523.0,"empSex":1}],"pages":1,"total":1}}
+                     */
+                    let data=resp.data;
+                    this.emps=data.result.data;
+                    this.total=data.result.total;
+                })
+            },
+            formatterSex(row) {
+                // console.log(row)//就是当前行的数据
+                return row.empSex==1?"男":"女";  //返回的值就是当前列中显示内容
+            },
+            formatterDate(row){
+                let date=new Date(row.empBirth);//1666022400000
+                return date.getFullYear()+"-"+(date.getMonth()+1)+"-"+date.getDate()
+            },
+            handleSizeChange(val) {
+                console.log(`每页 ${val} 条`);
+                this.pageSize=val;
+                this.getData();
+            },
+            handleCurrentChange(val) {
+                console.log(`当前页: ${val}`);
+                this.pageNum=val;
+                this.getData()
+            }
+        }
+    })
+</script>
+</body>
+</html>
